@@ -315,20 +315,24 @@ function save(){
 async function doSave(){
   const txt=JSON.stringify(D);
   const localOk=localSet(KEY,txt);          // 기기 저장은 항상 시도
+  // 즉시 되읽기 검증 — 저장 성공 표시가 떠도 실제로 안 남는 환경 감지
+  let verifyOk=false;
+  try{verifyOk=(localGet(KEY)===txt);}catch(e){}
   let cloudOk=false;
   if(!hasCloud()){cloudErr='이 환경에는 계정 저장 기능(window.storage)이 없음';}
   else{
     try{const r=await window.storage.set(KEY,txt);cloudOk=!!r;
       if(!cloudOk)cloudErr='계정 저장 호출이 빈 응답을 반환';}
     catch(e){cloudOk=false;cloudErr='계정 저장 오류: '+(e&&e.message?e.message:e);}
-    if(!cloudOk){                            // 1회 재시도
+    if(!cloudOk){
       await new Promise(r=>setTimeout(r,800));
       try{const r=await window.storage.set(KEY,txt);cloudOk=!!r;if(cloudOk)cloudErr='';}
       catch(e){cloudErr='계정 저장 오류: '+(e&&e.message?e.message:e);}
     }
   }
   if(cloudOk){cloudErr='';setState('저장됨 ✓ (계정)');}
-  else if(localOk)setState('저장됨 ✓ (이 기기)');
+  else if(localOk&&verifyOk)setState('저장됨 ✓ (이 기기)');
+  else if(localOk&&!verifyOk){setState('⚠️ 저장 불안정 — 눌러 확인');cloudErr='기기 저장이 즉시 되읽기에 실패 — 사파리 설정이 저장을 막고 있을 가능성. 아래 안내 참고.';}
   else setState('저장 실패 — 눌러서 재시도');
 }
 let cloudErr='';
