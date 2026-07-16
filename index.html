@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>미니닌 아웃풋</title>
+<style>
+  :root{
+    --paper:#F7F6F1; --card:#FFFFFF; --ink:#2A2A33; --sub:#8A8A94;
+    --hl:#FFE873; --hl-soft:#FFF6C9;
+    --know:#3E9B6E; --know-bg:#E7F4EC;
+    --dont:#E2694F; --dont-bg:#FBEAE4;
+    --line:#E7E5DC; --radius:16px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{height:100%}
+  body{
+    font-family:-apple-system,"Apple SD Gothic Neo","Pretendard",sans-serif;
+    background:var(--paper); color:var(--ink);
+    max-width:520px; margin:0 auto; padding-bottom:88px;
+    min-height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch;
+  }
+  .eng{font-family:Georgia,"Times New Roman",serif}
+
+  header{padding:22px 20px 8px}
+  header h1{font-size:20px;font-weight:800;letter-spacing:-.02em;display:inline;
+    background:linear-gradient(transparent 58%, var(--hl) 58%, var(--hl) 92%, transparent 92%)}
+  header p{font-size:12px;color:var(--sub);margin-top:6px}
+  #saveState{font-size:11px;color:var(--sub);float:right;margin-top:4px}
+
+  .tabs{position:fixed;bottom:0;left:0;right:0;max-width:520px;margin:0 auto;
+    display:flex;background:var(--card);border-top:1px solid var(--line);
+    padding-bottom:env(safe-area-inset-bottom);z-index:10}
+  .tabs button{flex:1;padding:12px 0 10px;border:none;background:none;font-size:12px;
+    color:var(--sub);font-weight:600;font-family:inherit}
+  .tabs button .ico{display:block;font-size:20px;margin-bottom:2px}
+  .tabs button.on{color:var(--ink)}
+  .tabs button.on .ico{filter:none}
+  .tabs button:not(.on) .ico{filter:grayscale(1);opacity:.45}
+
+  main{padding:12px 16px}
+  .panel{display:none}
+  .panel.on{display:block}
+  .badge{display:inline-block;background:var(--hl-soft);border:1px solid var(--hl);
+    border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700}
+
+  /* study */
+  .studyCard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:28px 22px;min-height:220px;display:flex;flex-direction:column;justify-content:center;
+    text-align:center;margin-top:14px;box-shadow:0 2px 8px rgba(42,42,51,.05)}
+  .studyCard .front{font-size:21px;line-height:1.45;font-weight:500}
+  .studyCard .back{font-size:16px;color:var(--sub);margin-top:16px;padding-top:16px;
+    border-top:1px dashed var(--line);line-height:1.5}
+  .hint{font-size:12px;color:var(--sub);text-align:center;margin-top:10px}
+  .btnRow{display:flex;gap:10px;margin-top:14px}
+  .btn{flex:1;padding:15px 0;border:none;border-radius:14px;font-size:15px;font-weight:700;font-family:inherit}
+  .btn:active{transform:scale(.97)}
+  .btnFlip{background:var(--ink);color:#fff;width:100%}
+  .btnDont{background:var(--dont-bg);color:var(--dont)}
+  .btnKnow{background:var(--know-bg);color:var(--know)}
+  .btnGhost{background:none;border:1px solid var(--line);color:var(--sub);font-size:13px;padding:10px 14px;border-radius:12px;font-family:inherit}
+  .doneBox{text-align:center;padding:48px 12px}
+  .doneBox .big{font-size:40px}
+  .doneBox h2{font-size:18px;margin:10px 0 6px}
+  .doneBox p{font-size:13px;color:var(--sub);line-height:1.6}
+
+  /* add */
+  label{display:block;font-size:12px;font-weight:700;color:var(--sub);margin:16px 2px 6px}
+  input[type=text],textarea{width:100%;background:var(--card);border:1px solid var(--line);
+    border-radius:12px;padding:13px 14px;font-size:15px;font-family:inherit;color:var(--ink)}
+  textarea{min-height:96px;resize:vertical;line-height:1.5}
+  input:focus,textarea:focus{outline:2px solid var(--hl)}
+  .addBtn{width:100%;margin-top:16px;background:var(--ink);color:#fff}
+  .tip{font-size:12px;color:var(--sub);line-height:1.6;margin-top:8px;background:var(--hl-soft);
+    border-radius:10px;padding:10px 12px}
+  .cB{color:#3D7BD9;font-weight:600}
+  .cR{color:#D9534F;font-weight:600}
+  .cG{color:#3E9B6E;font-weight:600}
+  .labelRow{display:flex;align-items:center;justify-content:space-between;margin:16px 2px 6px}
+  .labelRow label{margin:0}
+  .colorInline{display:flex;gap:8px;align-items:center}
+  .colorInline .cdot{width:24px;height:24px}
+  .colorInline .cdotX{width:24px;height:24px;font-size:12px;display:flex;align-items:center;justify-content:center}
+  .colorBar{display:flex;gap:10px;margin:8px 2px 0;align-items:center}
+  .cdot{width:30px;height:30px;border-radius:50%;border:2px solid var(--card);
+    box-shadow:0 0 0 1px var(--line);font-family:inherit}
+  .cdot:active{transform:scale(.9)}
+  .cdotX{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);
+    background:var(--card);color:var(--sub);font-size:15px;font-family:inherit}
+  .colorHint{font-size:11px;color:var(--sub);margin-left:auto}
+  .toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);background:var(--ink);
+    color:#fff;font-size:13px;padding:10px 18px;border-radius:999px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:40}
+  .toast.show{opacity:1}
+
+  /* record capture card */
+  .capture{background:var(--card);border:2px solid var(--ink);border-radius:var(--radius);
+    padding:20px;margin-top:14px;position:relative;overflow:hidden}
+  .capture::after{content:"미니닌 스터디 인증";position:absolute;top:14px;right:-34px;
+    transform:rotate(38deg);background:var(--hl);font-size:10px;font-weight:800;
+    padding:5px 40px;letter-spacing:.04em}
+  .capture .date{font-size:13px;color:var(--sub);font-weight:600}
+  .capture .headline{font-size:26px;font-weight:800;margin:8px 0 2px;letter-spacing:-.02em}
+  .capture .headline em{font-style:normal;
+    background:linear-gradient(transparent 55%, var(--hl) 55%, var(--hl) 92%, transparent 92%)}
+  .capture .stats{display:flex;gap:8px;margin-top:14px}
+  .capture .stat{flex:1;background:var(--paper);border-radius:12px;padding:10px 6px;text-align:center}
+  .capture .stat b{display:block;font-size:20px}
+  .capture .stat span{font-size:11px;color:var(--sub)}
+  .streak{font-size:12px;color:var(--sub);margin-top:12px}
+  .histItem{display:flex;justify-content:space-between;align-items:center;background:var(--card);
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:8px;font-size:13px}
+  .histItem b{font-weight:700}
+  .histItem .sub{color:var(--sub);font-size:12px}
+  h3.sec{font-size:14px;margin:26px 2px 4px;font-weight:800}
+
+  /* manage list */
+  .cardItem{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:12px 14px;margin-top:8px}
+  .cardItem .f{font-size:14px;line-height:1.4}
+  .cardItem .meta{display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--sub)}
+  .cardItem .del{color:var(--dont);background:none;border:none;font-size:11px;font-family:inherit;padding:0}
+  .backupRow{display:flex;gap:8px;margin-top:10px}
+  .chips{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+  .chip{border:1px solid var(--line);background:var(--card);border-radius:999px;
+    padding:7px 13px;font-size:12px;font-weight:600;color:var(--sub);font-family:inherit}
+  .chip.on{background:var(--hl-soft);border-color:var(--hl);color:var(--ink)}
+  .playerBox{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:12px;margin-top:12px}
+  .playerRow{display:flex;gap:8px;margin-top:8px}
+  .playerRow:first-child{margin-top:0}
+  .pLabel{flex:1;display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:var(--sub);margin:0}
+  .pLabel select{border:1px solid var(--line);border-radius:10px;padding:9px 8px;font-size:14px;
+    font-family:inherit;background:var(--paper);color:var(--ink)}
+  .loading{text-align:center;color:var(--sub);padding:60px 0;font-size:14px}
+
+  /* backup modal */
+  .modalWrap{display:none;position:fixed;inset:0;background:rgba(42,42,51,.45);z-index:30;
+    align-items:flex-end;justify-content:center}
+  .modalWrap.on{display:flex}
+  .modal{background:var(--card);border-radius:20px 20px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom));
+    width:100%;max-width:520px}
+  .modal h4{font-size:15px;font-weight:800;margin-bottom:10px}
+  .modal textarea{min-height:140px;font-size:12px;font-family:Menlo,monospace}
+  .modal .btnRow{margin-top:12px}
+</style>
+</head>
+<body>
+<header>
+  <span id="saveState"></span>
+  <h1>미니닌 아웃풋</h1>
+  <p>오늘 배운 인풋을, 내 문장으로.</p>
+</header>
+
+<main>
+  <div id="loading" class="loading">기록을 불러오는 중…</div>
+
+  <!-- 학습 -->
+  <section class="panel" id="panel-study">
+    <span class="badge" id="dueBadge"></span>
+    <button class="chip" id="sndBtn" style="float:right" onclick="toggleSound()">🔇 소리 꺼짐</button>
+    <div id="studyArea"></div>
+  </section>
+
+  <!-- 추가 -->
+  <section class="panel" id="panel-add">
+    <div class="labelRow">
+      <label style="margin:0">한국어 뜻 · 영영풀이 (문제)</label>
+      <div class="colorInline">
+        <button type="button" class="cdot" style="background:#3D7BD9" onmousedown="event.preventDefault()" onclick="applyColor('b')" aria-label="파랑"></button>
+        <button type="button" class="cdot" style="background:#D9534F" onmousedown="event.preventDefault()" onclick="applyColor('r')" aria-label="빨강"></button>
+        <button type="button" class="cdot" style="background:#3E9B6E" onmousedown="event.preventDefault()" onclick="applyColor('g')" aria-label="초록"></button>
+        <button type="button" class="cdotX" onmousedown="event.preventDefault()" onclick="applyColor('x')" aria-label="색 지우기">✕</button>
+      </div>
+    </div>
+    <input type="text" id="inFront" placeholder="깜빡했어.">
+    <label>영어 문장 · 표현 (정답)</label>
+    <input type="text" id="inBack" class="eng" placeholder="It slipped my mind.">
+    <button class="btn addBtn" onclick="addSingle()">카드 추가</button>
+
+    <label style="margin-top:28px">여러 개 한 번에 붙여넣기</label>
+    <textarea id="inBulk" placeholder="깜빡했어. It slipped my mind.&#10;unable to decide ; on the fence"></textarea>
+    <div class="tip">한 줄에 카드 하나씩, <b>한국어 먼저 → 영어</b> 순서로 이어 쓰면 문제/정답이 자동으로 나뉘어요. <b>영영풀이</b>는 <b>풀이 ; 영단어</b>처럼 세미콜론으로 구분. 사진 속 문장은 아이폰에서 사진을 길게 눌러 텍스트 복사 → 여기에 붙여넣기 📸<br><br>색을 넣고 싶으면 글자를 <b>[b]파랑[/b] [r]빨강[/r] [g]초록[/g]</b>으로 감싸면 돼요. 예: <span class="eng">I [r]aced[/r] the test.</span></div>
+    <button class="btn addBtn" onclick="addBulk()">붙여넣은 카드 모두 추가</button>
+  </section>
+
+  <!-- 기록 -->
+  <section class="panel" id="panel-record">
+    <div class="capture" id="captureCard"></div>
+    <p class="hint">이 카드를 캡처해서 카톡방에 인증하면 끝! 📸</p>
+    <h3 class="sec">지난 기록</h3>
+    <div id="history"></div>
+  </section>
+
+  <!-- 카드함 -->
+  <section class="panel" id="panel-manage">
+    <span class="badge" id="totalBadge"></span>
+    <h3 class="sec">백업 <span id="backupAge" style="font-weight:600;color:var(--sub);font-size:12px"></span></h3>
+    <div class="backupRow">
+      <button class="btnGhost" style="flex:1" onclick="exportData()">내보내기 (복사)</button>
+      <button class="btnGhost" style="flex:1" onclick="importData()">가져오기 (붙여넣기)</button>
+    </div>
+    <div class="backupRow">
+      <button class="btnGhost" style="flex:1" onclick="csvExport()">CSV 내보내기</button>
+      <button class="btnGhost" style="flex:1" onclick="csvImport()">CSV 가져오기</button>
+    </div>
+    <h3 class="sec">전체 카드</h3>
+    <input type="text" id="cardSearch" placeholder="🔍 카드 검색 (한국어·영어 모두)" oninput="renderManage()">
+    <div class="chips" id="chips">
+      <button class="chip on" data-f="all">전체</button>
+      <button class="chip" data-f="today">오늘 추가</button>
+      <button class="chip" data-f="due">오늘 복습</button>
+      <button class="chip" data-f="learning">외우는 중</button>
+    </div>
+    <div class="playerBox">
+      <div class="playerRow">
+        <button class="btn btnFlip" id="playBtn" style="flex:1;padding:12px 0" onclick="togglePlay()">▶︎ 지금 목록 듣기</button>
+      </div>
+      <div class="playerRow">
+        <label class="pLabel">속도<select id="pRate" onchange="savePlayerSet()"><option value="0.7">0.7×</option><option value="0.85">0.85×</option><option value="1" selected>1×</option><option value="1.2">1.2×</option></select></label>
+        <label class="pLabel">영어 반복<select id="pEng" onchange="savePlayerSet()"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option></select></label>
+        <label class="pLabel">전체 반복<select id="pAll" onchange="savePlayerSet()"><option selected>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></label>
+      </div>
+      <p class="hint" id="playStatus" style="text-align:left;margin-top:6px"></p>
+    </div>
+    <div id="cardList"></div>
+  </section>
+</main>
+
+<nav class="tabs" id="tabs">
+  <button data-p="study" class="on"><span class="ico">📖</span>학습</button>
+  <button data-p="add"><span class="ico">✍️</span>추가</button>
+  <button data-p="record"><span class="ico">📸</span>기록</button>
+  <button data-p="manage"><span class="ico">🗂️</span>카드함</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<div class="modalWrap" id="editWrap">
+  <div class="modal">
+    <h4>카드 수정</h4>
+    <div class="labelRow">
+      <label style="margin:0">문제 (한국어 뜻 · 영영풀이)</label>
+      <div class="colorInline">
+        <button type="button" class="cdot" style="background:#3D7BD9" onmousedown="event.preventDefault()" onclick="applyColor('b')" aria-label="파랑"></button>
+        <button type="button" class="cdot" style="background:#D9534F" onmousedown="event.preventDefault()" onclick="applyColor('r')" aria-label="빨강"></button>
+        <button type="button" class="cdot" style="background:#3E9B6E" onmousedown="event.preventDefault()" onclick="applyColor('g')" aria-label="초록"></button>
+        <button type="button" class="cdotX" onmousedown="event.preventDefault()" onclick="applyColor('x')" aria-label="색 지우기">✕</button>
+      </div>
+    </div>
+    <input type="text" id="editFront">
+    <label>정답 (영어)</label>
+    <input type="text" id="editBack" class="eng">
+    <div class="btnRow">
+      <button class="btn btnGhost" style="flex:1" onclick="document.getElementById('editWrap').classList.remove('on')">닫기</button>
+      <button class="btn btnFlip" style="flex:2" id="editSave">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="modalWrap" id="modalWrap">
+  <div class="modal">
+    <h4 id="modalTitle"></h4>
+    <textarea id="modalText" placeholder=""></textarea>
+    <div class="btnRow">
+      <button class="btn btnGhost" style="flex:1" onclick="closeModal()">닫기</button>
+      <button class="btn btnFlip" style="flex:2" id="modalAction"></button>
+    </div>
+  </div>
+</div>
+
+<script>
+const KEY='mininin-output-v1';
+const OLD_KEY='minin-output-v1';
+const INTERVALS=[1,3,7,14,30,60,120];
+let D={cards:[],days:{}};           // days: {'2026-07-07':{studied,know,dont,added,minutes}}
+let session={queue:[],idx:0,flipped:false,startAt:null,answered:new Set(),passes:{}};
+let saveTimer=null, ready=false;
+
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function fmtDate(s){const[y,m,d]=s.split('-');return y+'년 '+Number(m)+'월 '+Number(d)+'일';}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800);}
+function day(){const t=todayStr();if(!D.days[t])D.days[t]={studied:0,know:0,dont:0,added:0,minutes:0};return D.days[t];}
+
+/* ---------- storage (2중: Claude 계정 → 기기) ---------- */
+function hasCloud(){return typeof window.storage==='object'&&window.storage&&typeof window.storage.set==='function';}
+async function cloudGet(k){const r=await window.storage.get(k);return r&&r.value?r.value:null;}
+function localGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
+function localSet(k,v){try{localStorage.setItem(k,v);return true;}catch(e){return false;}}
+function setState(msg){document.getElementById('saveState').textContent=msg;}
+
+async function load(){
+  let raw=null;
+  if(hasCloud()){
+    try{raw=await cloudGet(KEY);}catch(e){}
+    if(!raw){try{raw=await cloudGet(OLD_KEY);}catch(e){}}
+  }
+  if(!raw)raw=localGet(KEY);
+  if(raw){
+    try{D=JSON.parse(raw);}catch(e){}
+  }
+  if(!D.settings)D.settings={sound:false,rate:1,engRep:2,allRep:1};
+  ready=true;
+  document.getElementById('loading').style.display='none';
+  document.getElementById('panel-study').classList.add('on');
+  applySettings();
+  buildQueue();renderAll();
+  save(); // 불러온 직후 양쪽 동기화
+}
+function save(){
+  if(!ready)return;
+  setState('저장 중…');
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(doSave,400);
+}
+async function doSave(){
+  const txt=JSON.stringify(D);
+  const localOk=localSet(KEY,txt);          // 기기 저장은 항상 시도
+  let cloudOk=false;
+  if(!hasCloud()){cloudErr='이 환경에는 계정 저장 기능(window.storage)이 없음';}
+  else{
+    try{const r=await window.storage.set(KEY,txt);cloudOk=!!r;
+      if(!cloudOk)cloudErr='계정 저장 호출이 빈 응답을 반환';}
+    catch(e){cloudOk=false;cloudErr='계정 저장 오류: '+(e&&e.message?e.message:e);}
+    if(!cloudOk){                            // 1회 재시도
+      await new Promise(r=>setTimeout(r,800));
+      try{const r=await window.storage.set(KEY,txt);cloudOk=!!r;if(cloudOk)cloudErr='';}
+      catch(e){cloudErr='계정 저장 오류: '+(e&&e.message?e.message:e);}
+    }
+  }
+  if(cloudOk){cloudErr='';setState('저장됨 ✓ (계정)');}
+  else if(localOk)setState('저장됨 ✓ (이 기기)');
+  else setState('저장 실패 — 눌러서 재시도');
+}
+let cloudErr='';
+document.getElementById('saveState').addEventListener('click',()=>{
+  if(!ready)return;
+  if(cloudErr)toast(cloudErr);
+  doSave();
+});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&ready){clearTimeout(saveTimer);doSave();}});
+
+/* ---------- add ---------- */
+function makeCard(f,b){const n=new Date();
+  return{id:Date.now()+Math.random().toString(16).slice(2),front:f,back:b||'',
+  reps:0,step:-1,due:todayStr(),addedAt:todayStr(),
+  addedHM:String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')};}
+function addSingle(){
+  const f=document.getElementById('inFront').value.trim();
+  if(!f){toast('문제(한국어 뜻·영영풀이)를 입력해 주세요');return;}
+  const b=document.getElementById('inBack').value.trim();
+  D.cards.push(makeCard(f,b));day().added++;
+  document.getElementById('inFront').value='';document.getElementById('inBack').value='';
+  save();buildQueue();renderAll();toast('카드 추가 완료');
+}
+function addBulk(){
+  const lines=document.getElementById('inBulk').value.split('\n').map(l=>l.trim()).filter(Boolean);
+  if(!lines.length){toast('붙여넣은 내용이 없어요');return;}
+  let n=0;
+  for(const l of lines){
+    const s=l.search(/[;|]/);
+    if(s>0){
+      D.cards.push(makeCard(l.slice(0,s).trim(),l.slice(s+1).trim()));
+    }else if(/^[가-힣ㄱ-ㅎㅏ-ㅣ]/.test(l)||/^\[[brg]\]\s*[가-힣]/.test(l)){
+      // 색 태그를 건너뛰고 '실제 영어 정답'이 시작되는 첫 영문자를 찾는다
+      const scan=l.replace(/\[\/?[brg]\]/g,m=>' '.repeat(m.length));
+      const i=scan.search(/[A-Za-z]/);
+      if(i>0){
+        D.cards.push(makeCard(l.slice(0,i).trim(),l.slice(i).trim()));
+      }else{
+        D.cards.push(makeCard(l,''));
+      }
+    }else{
+      D.cards.push(makeCard(l,''));
+    }
+    n++;
+  }
+  day().added+=n;document.getElementById('inBulk').value='';
+  save();buildQueue();renderAll();toast(n+'개 카드 추가 완료');
+}
+
+/* ---------- SRS ---------- */
+const OVERDUE_CAP=50;                // 밀린(이전 날짜) 복습 카드 하루 상한
+function buildQueue(){
+  const t=todayStr();
+  const todayCards=D.cards.filter(c=>c.due===t).map(c=>c.id);
+  const overdue=D.cards.filter(c=>c.due<t).sort((a,b)=>a.due<b.due?-1:1).map(c=>c.id);
+  session.deferred=Math.max(0,overdue.length-OVERDUE_CAP);
+  session.queue=overdue.slice(0,OVERDUE_CAP).concat(todayCards);
+  session.idx=0;session.flipped=false; // passes는 유지 — 탭 이동으로 반복 진행이 리셋되면 안 됨
+}
+function curCard(){return D.cards.find(c=>c.id===session.queue[session.idx]);}
+function answer(know){
+  const c=curCard();if(!c)return;
+  if(!session.startAt)session.startAt=Date.now();
+  const dd=day();
+  if(!session.answered.has(c.id)){dd.studied++;session.answered.add(c.id);}
+  if(know){
+    dd.know++;
+    const learning=c.step<0;                       // 새 카드 또는 틀려서 리셋된 카드
+    if(learning && !(session.passes[c.id]>=1)){
+      session.passes[c.id]=1;                      // 1차 통과 — 오늘 한 번 더
+      session.queue.push(session.queue.splice(session.idx,1)[0]);
+    }else{
+      c.step=Math.min(c.step+1,INTERVALS.length-1);c.reps++;
+      const nd=new Date();nd.setDate(nd.getDate()+INTERVALS[c.step]);
+      c.due=nd.getFullYear()+'-'+String(nd.getMonth()+1).padStart(2,'0')+'-'+String(nd.getDate()).padStart(2,'0');
+      session.queue.splice(session.idx,1);
+    }
+  }else{
+    dd.dont++;c.step=-1;c.reps++;session.passes[c.id]=0;
+    session.queue.push(session.queue.splice(session.idx,1)[0]); // retry at end today
+  }
+  if(session.idx>=session.queue.length)session.idx=0;
+  const nowMs=Date.now();
+  const gap=nowMs-(session.lastAnswerAt||nowMs);
+  dd.ms=(dd.ms||((dd.minutes||0)*60000))+((gap>0&&gap<=180000)?gap:15000);
+  dd.minutes=Math.round(dd.ms/60000);
+  session.lastAnswerAt=nowMs;
+  const now=new Date();dd.lastAt=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  session.flipped=false;save();renderStudy();renderRecord();
+}
+
+/* ---------- render ---------- */
+function renderAll(){renderStudy();renderRecord();renderManage();}
+function renderStudy(){
+  const area=document.getElementById('studyArea');
+  document.getElementById('dueBadge').textContent='오늘 복습할 카드 '+session.queue.length+'개'+(session.deferred?' · 밀린 '+session.deferred+'개는 내일':'');
+  if(!D.cards.length){
+    area.innerHTML='<div class="doneBox"><div class="big">✍️</div><h2>첫 카드를 만들어 보세요</h2><p>추가 탭에서 오늘 캐치한 문장을<br>붙여넣으면 여기서 암기가 시작돼요.</p></div>';return;}
+  if(!session.queue.length){
+    area.innerHTML='<div class="doneBox"><div class="big">🎉</div><h2>오늘 복습 끝!</h2><p>기록 탭에서 인증 카드를 캡처하세요.<br>'+(session.deferred?'밀린 카드 '+session.deferred+'개는 내일 이어집니다.':'내일 복습할 카드가 자동으로 준비됩니다.')+'</p></div>';return;}
+  const c=curCard();
+  const firstPass=c.step<0&&!(session.passes[c.id]>=1);
+  const knowLabel=firstPass?'알았음 · 오늘 한 번 더':'알았음 · '+INTERVALS[Math.min(c.step+1,INTERVALS.length-1)]+'일 뒤';
+  area.innerHTML='<div class="studyCard"><div class="front">'+colorize(c.front)+'</div>'+
+    (session.flipped?'<div class="back eng" style="color:var(--ink);font-size:19px">'+(colorize(c.back)||'(정답 미입력)')+'</div>':'')+'</div>'+
+    (session.flipped
+      ?'<div class="btnRow"><button class="btn btnDont" onclick="answer(false)">몰랐음 · 오늘 다시</button><button class="btn btnKnow" onclick="answer(true)">'+knowLabel+'</button></div>'
+      :'<div class="btnRow"><button class="btn btnFlip" onclick="flip()">영어로 말한 뒤, 정답 확인</button></div>');
+}
+function flip(){session.flipped=true;renderStudy();
+  const c=curCard();
+  if(D.settings&&D.settings.sound&&c&&c.back){
+    try{speechSynthesis.cancel();}catch(e){} // 이전 카드 음성이 남아있으면 끊고 시작
+    speak(plain(c.back),'en-US',D.settings.rate||1);
+  }
+}
+
+/* ---------- 소리 (기기 내장 TTS) ---------- */
+function ttsOK(){return 'speechSynthesis' in window;}
+let lastSpeakEnd=0;
+function primer(){ // iOS 페이드인 흡수용 무음 워밍업
+  return new Promise(res=>{
+    const u=new SpeechSynthesisUtterance('a');
+    u.volume=0;u.rate=2;u.lang='en-US';
+    u.onend=res;u.onerror=res;
+    speechSynthesis.speak(u);
+  });
+}
+async function speak(text,lang,rate,vol){
+  if(!ttsOK()||!text)return;
+  if(Date.now()-lastSpeakEnd>2000)await primer(); // 엔진이 식었으면 깨우고 시작
+  await new Promise(res=>{
+    const u=new SpeechSynthesisUtterance(text);
+    u.lang=lang;u.rate=rate||1;u.volume=(vol==null?1:vol);
+    u.onend=res;u.onerror=res;
+    speechSynthesis.speak(u);
+  });
+  lastSpeakEnd=Date.now();
+}
+function toggleSound(){
+  if(!D.settings)D.settings={sound:false,rate:1,engRep:2,allRep:1};
+  D.settings.sound=!D.settings.sound;
+  if(D.settings.sound&&!ttsOK()){toast('이 환경에서는 음성을 지원하지 않아요');D.settings.sound=false;}
+  document.getElementById('sndBtn').textContent=D.settings.sound?'🔊 정답 읽어줌':'🔇 소리 꺼짐';
+  document.getElementById('sndBtn').classList.toggle('on',D.settings.sound);
+  save();
+  if(D.settings.sound)speak('sound on','en-US',1); // iOS 첫 재생은 탭 직후에 시작해야 함
+}
+function savePlayerSet(){
+  if(!D.settings)D.settings={sound:false,rate:1,engRep:2,allRep:1};
+  D.settings.rate=parseFloat(document.getElementById('pRate').value);
+  D.settings.engRep=parseInt(document.getElementById('pEng').value);
+  D.settings.allRep=parseInt(document.getElementById('pAll').value);
+  save();
+}
+function applySettings(){
+  const s=D.settings||{};
+  if(s.rate)document.getElementById('pRate').value=String(s.rate);
+  if(s.engRep)document.getElementById('pEng').value=String(s.engRep);
+  if(s.allRep)document.getElementById('pAll').value=String(s.allRep);
+  document.getElementById('sndBtn').textContent=s.sound?'🔊 정답 읽어줌':'🔇 소리 꺼짐';
+  document.getElementById('sndBtn').classList.toggle('on',!!s.sound);
+}
+
+/* ---------- 듣기 플레이어 ---------- */
+let player={playing:false,stop:false};
+function hasHangul(s){return /[가-힣]/.test(s);}
+function wait(ms){return new Promise(r=>setTimeout(r,ms));}
+function pStatus(m){document.getElementById('playStatus').textContent=m;}
+function togglePlay(){player.playing?stopPlay():startPlay();}
+function stopPlay(){
+  player.stop=true;player.playing=false;
+  if(ttsOK())speechSynthesis.cancel();
+  document.getElementById('playBtn').textContent='▶︎ 지금 목록 듣기';
+  pStatus('');
+}
+async function startPlay(){
+  if(!ttsOK()){toast('이 환경에서는 음성을 지원하지 않아요');return;}
+  const list=getFilteredCards();
+  if(!list.length){toast('들을 카드가 없어요 — 분류나 검색을 확인해 주세요');return;}
+  const s=D.settings||{};
+  const rate=s.rate||1, engRep=s.engRep||2, allRep=s.allRep||1;
+  player={playing:true,stop:false};
+  document.getElementById('playBtn').textContent='⏸ 정지';
+  for(let round=1;round<=allRep&&!player.stop;round++){
+    for(let i=0;i<list.length&&!player.stop;i++){
+      const c=list[i];
+      pStatus((allRep>1?round+'번째 바퀴 · ':'')+(i+1)+'/'+list.length+' — '+plain(c.front).slice(0,26));
+      const koFront=hasHangul(c.front);
+      await speak(plain(c.front),koFront?'ko-KR':'en-US',rate,koFront?0.85:1);
+      if(player.stop)break;
+      await wait(700);
+      for(let r=0;r<engRep&&!player.stop;r++){
+        if(c.back)await speak(plain(c.back),'en-US',rate,1);
+        if(!player.stop)await wait(500);
+      }
+      if(!player.stop)await wait(400);
+    }
+  }
+  stopPlay();
+}
+function renderRecord(){
+  const t=todayStr(),d=D.days[t]||{studied:0,know:0,dont:0,added:0,minutes:0};
+  let streak=0;const dt=new Date();
+  const k0=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+  if(!(D.days[k0]&&D.days[k0].studied>0))dt.setDate(dt.getDate()-1); // 오늘 아직이면 어제부터 계산
+  while(true){const s=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+    if(D.days[s]&&D.days[s].studied>0){streak++;dt.setDate(dt.getDate()-1);}else break;}
+  document.getElementById('captureCard').innerHTML=
+    '<div class="date">'+fmtDate(t)+(d.lastAt?' · 마지막 학습 '+d.lastAt:'')+'</div>'+
+    '<div class="headline"><em>문장 '+d.studied+'개</em> 암기 완료</div>'+
+    '<div class="stats"><div class="stat"><b>'+d.minutes+'</b><span>분 소요</span></div>'+
+    '<div class="stat"><b>'+d.added+'</b><span>신규 추가</span></div>'+
+    '<div class="stat"><b>'+d.know+'</b><span>알았음</span></div>'+
+    '<div class="stat"><b>'+d.dont+'</b><span>몰랐음</span></div></div>'+
+    '<div class="streak">🔥 '+streak+'일 연속 학습 중</div>';
+  const h=Object.keys(D.days).sort().reverse().filter(k=>k!==t).slice(0,30);
+  document.getElementById('history').innerHTML=h.length?h.map(k=>{const v=D.days[k];
+    return '<div class="histItem"><b>'+fmtDate(k)+'</b><span class="sub">문장 '+v.studied+'개 · '+v.minutes+'분 · 신규 '+v.added+'</span></div>';}).join('')
+    :'<p class="hint" style="text-align:left">아직 지난 기록이 없어요.</p>';
+}
+let cardFilter='all';
+function getFilteredCards(){
+  const q=(document.getElementById('cardSearch').value||'').trim().toLowerCase();
+  const t=todayStr();
+  let list=[...D.cards].reverse();
+  if(cardFilter==='today')list=list.filter(c=>c.addedAt===t);
+  else if(cardFilter==='due')list=list.filter(c=>c.due<=t);
+  else if(cardFilter==='learning')list=list.filter(c=>c.step<0);
+  if(q)list=list.filter(c=>plain(c.front).toLowerCase().includes(q)||plain(c.back).toLowerCase().includes(q));
+  return list;
+}
+function renderManage(){
+  document.getElementById('totalBadge').textContent='전체 카드 '+D.cards.length+'개';
+  const ba=document.getElementById('backupAge');
+  if(D.lastBackup){
+    const diff=Math.floor((new Date(todayStr())-new Date(D.lastBackup))/86400000);
+    ba.textContent=diff===0?'· 오늘 백업함 ✓':'· 마지막 백업 '+diff+'일 전'+(diff>=7?' — 백업 권장!':'');
+    ba.style.color=diff>=7?'var(--dont)':'var(--sub)';
+  }else{ba.textContent='· 아직 백업 안 함';ba.style.color='var(--dont)';}
+  let list=getFilteredCards();
+  const total=list.length;
+  list=list.slice(0,300);
+  document.getElementById('cardList').innerHTML=(total?('<p class="hint" style="text-align:left;margin-top:10px">'+total+'개'+(total>300?' (300개까지 표시)':'')+'</p>'):'')+
+    (list.length?list.map(c=>
+    '<div class="cardItem"><div class="f">'+colorize(c.front)+'</div>'+
+    (c.back?'<div class="f eng" style="color:var(--sub);font-size:12px;margin-top:3px">'+colorize(c.back)+'</div>':'')+
+    '<div class="meta"><span>추가 '+c.addedAt.slice(5).replace('-','/')+(c.addedHM?' '+c.addedHM:'')+' · 복습 '+c.due.slice(5).replace('-','/')+'</span><span><button class="del" style="color:var(--sub);margin-right:12px" onclick="editCard(\''+c.id+'\')">수정</button><button class="del" onclick="delCard(\''+c.id+'\')">삭제</button></span></div></div>').join('')
+    :'<p class="hint" style="text-align:left">조건에 맞는 카드가 없어요.</p>');
+}
+document.getElementById('chips').addEventListener('click',e=>{
+  const b=e.target.closest('.chip');if(!b)return;
+  document.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');cardFilter=b.dataset.f;renderManage();
+});
+function editCard(id){
+  const c=D.cards.find(x=>x.id===id);if(!c)return;
+  document.getElementById('editFront').value=c.front;
+  document.getElementById('editBack').value=c.back;
+  document.getElementById('editSave').onclick=()=>{
+    const f=document.getElementById('editFront').value.trim();
+    if(!f){toast('문제를 입력해 주세요');return;}
+    c.front=f;c.back=document.getElementById('editBack').value.trim();
+    save();renderAll();
+    document.getElementById('editWrap').classList.remove('on');
+    toast('수정 완료');
+  };
+  document.getElementById('editWrap').classList.add('on');
+}
+function delCard(id){D.cards=D.cards.filter(c=>c.id!==id);save();buildQueue();renderAll();}
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+/* ---------- 텍스트 색상 ([b][r][g] 태그) ---------- */
+function plain(s){return (s||'').replace(/\[\/?[brg]\]/g,'');}
+function colorize(s){
+  return esc(s)
+    .replace(/\[b\]/g,'<span class="cB">').replace(/\[r\]/g,'<span class="cR">')
+    .replace(/\[g\]/g,'<span class="cG">').replace(/\[\/[brg]\]/g,'</span>');
+}
+let lastInput=null;
+['inFront','inBack','editFront','editBack'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el)el.addEventListener('focus',()=>lastInput=el);
+});
+function applyColor(tag){
+  const ids=['inFront','inBack','editFront','editBack'];
+  const el=(document.activeElement&&ids.includes(document.activeElement.id))?document.activeElement:lastInput;
+  if(!el){toast('먼저 입력칸의 글자를 드래그로 선택하세요');return;}
+  const s=el.selectionStart,e=el.selectionEnd,v=el.value;
+  if(tag==='x'){ // 선택 부분(또는 전체)의 색 제거
+    el.value=(s===e)?plain(v):v.slice(0,s)+plain(v.slice(s,e))+v.slice(e);
+    el.focus();return;
+  }
+  if(s===e){toast('색칠할 부분을 드래그로 선택한 뒤 색을 눌러 주세요');return;}
+  el.value=v.slice(0,s)+'['+tag+']'+v.slice(s,e)+'[/'+tag+']'+v.slice(e);
+  el.focus();
+}
+
+/* ---------- backup ---------- */
+function openModal(title,text,actionLabel,onAction){
+  document.getElementById('modalTitle').textContent=title;
+  const ta=document.getElementById('modalText');ta.value=text;
+  const btn=document.getElementById('modalAction');btn.textContent=actionLabel;btn.onclick=onAction;
+  document.getElementById('modalWrap').classList.add('on');
+}
+function closeModal(){document.getElementById('modalWrap').classList.remove('on');}
+function exportData(){
+  const txt=JSON.stringify(D);
+  openModal('백업 내보내기','', '복사하기',async()=>{
+    const ta=document.getElementById('modalText');
+    const btn=document.getElementById('modalAction');
+    let ok=false;
+    try{await navigator.clipboard.writeText(ta.value);ok=true;}
+    catch(e){ta.focus();ta.select();
+      try{ok=document.execCommand('copy');}catch(e2){}}
+    if(ok){btn.textContent='복사됨 ✓';D.lastBackup=todayStr();save();renderManage();toast('복사 완료 — 메모 앱에 붙여넣어 보관하세요 (이전 백업은 지워도 돼요)');}
+    else{btn.textContent='복사 실패 — 직접 복사해 주세요';toast('내용을 길게 눌러 전체 선택 후 복사해 주세요');}
+  });
+  document.getElementById('modalText').value=txt;
+}
+function importData(){
+  openModal('백업 가져오기','','가져오기 (덮어쓰기)',()=>{
+    const txt=document.getElementById('modalText').value.trim();
+    if(!txt){toast('백업 내용을 붙여넣어 주세요');return;}
+    try{const p=JSON.parse(txt);if(!p.cards)throw 0;
+      D=p;if(!D.days)D.days={};if(!D.settings)D.settings={sound:false,rate:1,engRep:2,allRep:1};
+      applySettings();save();buildQueue();renderAll();closeModal();toast('가져오기 완료');}
+    catch(e){toast('형식이 올바르지 않아요');}
+  });
+  document.getElementById('modalText').placeholder='내보내기로 복사해 둔 백업 내용을 여기에 붙여넣으세요';
+}
+
+/* ---------- CSV (엑셀·Anki 호환) ---------- */
+function csvExport(){
+  const txt=D.cards.map(c=>plain(c.front).replace(/\t/g,' ')+'\t'+plain(c.back).replace(/\t/g,' ')).join('\n');
+  openModal('CSV 내보내기 (탭 구분)','','복사하기',async()=>{
+    const ta=document.getElementById('modalText');
+    const btn=document.getElementById('modalAction');
+    let ok=false;
+    try{await navigator.clipboard.writeText(ta.value);ok=true;}
+    catch(e){ta.focus();ta.select();try{ok=document.execCommand('copy');}catch(e2){}}
+    if(ok){btn.textContent='복사됨 ✓';toast('복사 완료 — 엑셀이나 Anki에 붙여넣을 수 있어요');}
+    else{btn.textContent='복사 실패 — 직접 복사해 주세요';toast('내용을 길게 눌러 전체 선택 후 복사해 주세요');}
+  });
+  document.getElementById('modalText').value=txt;
+}
+function csvImport(){
+  openModal('CSV 가져오기','','카드로 추가',()=>{
+    const txt=document.getElementById('modalText').value.trim();
+    if(!txt){toast('내용을 붙여넣어 주세요');return;}
+    const lines=txt.split('\n').map(l=>l.trim()).filter(Boolean);
+    let n=0;
+    for(const l of lines){
+      let f,b;
+      if(l.includes('\t')){const i=l.indexOf('\t');f=l.slice(0,i);b=l.slice(i+1);}
+      else if(l.includes(',')){const i=l.indexOf(',');f=l.slice(0,i);b=l.slice(i+1);}
+      else{f=l;b='';}
+      f=f.trim().replace(/^"|"$/g,'');b=b.trim().replace(/^"|"$/g,'').replace(/\t/g,' ');
+      if(f){D.cards.push(makeCard(f,b));n++;}
+    }
+    if(!n){toast('추가할 카드가 없어요');return;}
+    day().added+=n;save();buildQueue();renderAll();closeModal();toast(n+'개 카드 추가 완료');
+  });
+  document.getElementById('modalText').placeholder='엑셀에서 두 열(문제, 정답)을 복사해 붙여넣거나,\n문제,정답 형식의 CSV를 붙여넣으세요.\n앞 열이 문제(한국어 뜻·영영풀이), 뒷 열이 정답(영어)입니다.';
+}
+
+/* ---------- tabs ---------- */
+document.getElementById('tabs').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.p!=='manage'&&player.playing)stopPlay();
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+  document.getElementById('panel-'+b.dataset.p).classList.add('on');
+  if(b.dataset.p==='study'){buildQueue();renderStudy();}
+});
+
+load();
+</script>
+</body>
+</html>
