@@ -58,6 +58,8 @@
   .btnFlip{background:var(--ink);color:#fff;width:100%}
   .btnDont{background:var(--dont-bg);color:var(--dont)}
   .btnKnow{background:var(--know-bg);color:var(--know)}
+  .btnHard{background:#FBF0D0;color:#A87900}
+  .btn small{display:block;font-size:11px;font-weight:600;opacity:.75;margin-top:2px}
   .btnGhost{background:none;border:1px solid var(--line);color:var(--sub);font-size:13px;padding:10px 14px;border-radius:12px;font-family:inherit}
   .doneBox{text-align:center;padding:48px 12px}
   .doneBox .big{font-size:40px}
@@ -271,7 +273,7 @@
 <script>
 const KEY='mininin-output-v1';
 const OLD_KEY='minin-output-v1';
-const INTERVALS=[1,3,7,14,30,60,120];
+// (v1.4) 고정 간격 사다리는 ease 방식으로 대체 — 마이그레이션 코드는 load()에 있음
 let D={cards:[],days:{}};           // days: {'2026-07-07':{studied,know,dont,added,minutes}}
 let session={queue:[],idx:0,flipped:false,startAt:null,answered:new Set(),passes:{}};
 let saveTimer=null, ready=false;
@@ -299,6 +301,15 @@ async function load(){
     try{D=JSON.parse(raw);}catch(e){}
   }
   if(!D.settings)D.settings={sound:false,rate:1,engRep:2,allRep:1};
+  // 기존 카드 → ease/ivl 방식 마이그레이션 (고정 사다리 시절 카드)
+  const OLD_INT=[1,3,7,14,30,60,120];
+  (D.cards||[]).forEach(c=>{
+    if(c.ease==null){
+      c.ease=2.5;
+      if(c.step>=0){c.ivl=OLD_INT[Math.min(c.step,OLD_INT.length-1)];c.step=0;}
+      else c.ivl=0;
+    }
+  });
   ready=true;
   document.getElementById('loading').style.display='none';
   document.getElementById('panel-study').classList.add('on');
@@ -346,7 +357,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden&&ready){cle
 /* ---------- add ---------- */
 function makeCard(f,b){const n=new Date();
   return{id:Date.now()+Math.random().toString(16).slice(2),front:f,back:b||'',
-  reps:0,step:-1,due:todayStr(),addedAt:todayStr(),
+  reps:0,step:-1,ease:2.5,ivl:0,due:todayStr(),addedAt:todayStr(),
   addedHM:String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')};}
 function addSingle(){
   const f=document.getElementById('inFront').value.trim();
@@ -393,26 +404,41 @@ function buildQueue(){
   session.idx=0;session.flipped=false; // passes는 유지 — 탭 이동으로 반복 진행이 리셋되면 안 됨
 }
 function curCard(){return D.cards.find(c=>c.id===session.queue[session.idx]);}
-function answer(know){
+const MAX_IVL=180, MIN_EASE=1.3;
+function scheduleCard(c,days){
+  const nd=new Date();nd.setDate(nd.getDate()+days);
+  c.due=nd.getFullYear()+'-'+String(nd.getMonth()+1).padStart(2,'0')+'-'+String(nd.getDate()).padStart(2,'0');
+}
+function nextIvl(c,grade){ // 복습 카드의 다음 간격 미리보기/계산
+  if(grade==='hard')return Math.min(MAX_IVL,Math.max(c.ivl+1,Math.round(c.ivl*1.2)));
+  return Math.min(MAX_IVL,Math.max(c.ivl+1,Math.round(c.ivl*(c.ease||2.5))));
+}
+function answer(grade){ // 'again' | 'hard' | 'good'
   const c=curCard();if(!c)return;
   if(!session.startAt)session.startAt=Date.now();
+  if(c.ease==null)c.ease=2.5;
   const dd=day();
   if(!session.answered.has(c.id)){dd.studied++;session.answered.add(c.id);}
-  if(know){
+  const learning=c.step<0;                         // 새 카드 또는 틀려서 리셋된 카드
+  if(grade==='again'){
+    dd.dont++;c.reps++;
+    c.ease=Math.max(MIN_EASE,c.ease-0.2);          // 틀린 카드는 앞으로 더 자주 나옴
+    c.step=-1;session.passes[c.id]=0;
+    session.queue.push(session.queue.splice(session.idx,1)[0]); // 오늘 다시
+  }else if(learning){                              // 익히는 중엔 good만 존재
     dd.know++;
-    const learning=c.step<0;                       // 새 카드 또는 틀려서 리셋된 카드
-    if(learning && !(session.passes[c.id]>=1)){
+    if(!(session.passes[c.id]>=1)){
       session.passes[c.id]=1;                      // 1차 통과 — 오늘 한 번 더
       session.queue.push(session.queue.splice(session.idx,1)[0]);
     }else{
-      c.step=Math.min(c.step+1,INTERVALS.length-1);c.reps++;
-      const nd=new Date();nd.setDate(nd.getDate()+INTERVALS[c.step]);
-      c.due=nd.getFullYear()+'-'+String(nd.getMonth()+1).padStart(2,'0')+'-'+String(nd.getDate()).padStart(2,'0');
+      c.step=0;c.reps++;c.ivl=1;scheduleCard(c,1); // 졸업 — 내일부터 복습
       session.queue.splice(session.idx,1);
     }
-  }else{
-    dd.dont++;c.step=-1;c.reps++;session.passes[c.id]=0;
-    session.queue.push(session.queue.splice(session.idx,1)[0]); // retry at end today
+  }else{                                           // 복습 카드
+    dd.know++;c.reps++;
+    if(grade==='hard')c.ease=Math.max(MIN_EASE,c.ease-0.15);
+    c.ivl=nextIvl(c,grade);scheduleCard(c,c.ivl);
+    session.queue.splice(session.idx,1);
   }
   if(session.idx>=session.queue.length)session.idx=0;
   const nowMs=Date.now();
@@ -434,12 +460,24 @@ function renderStudy(){
   if(!session.queue.length){
     area.innerHTML='<div class="doneBox"><div class="big">🎉</div><h2>오늘 복습 끝!</h2><p>기록 탭에서 인증 카드를 캡처하세요.<br>'+(session.deferred?'밀린 카드 '+session.deferred+'개는 내일 이어집니다.':'내일 복습할 카드가 자동으로 준비됩니다.')+'</p></div>';return;}
   const c=curCard();
-  const firstPass=c.step<0&&!(session.passes[c.id]>=1);
-  const knowLabel=firstPass?'알았음 · 오늘 한 번 더':'알았음 · '+INTERVALS[Math.min(c.step+1,INTERVALS.length-1)]+'일 뒤';
+  const learning=c.step<0;
+  let btns;
+  if(learning){
+    const firstPass=!(session.passes[c.id]>=1);
+    const knowLabel=firstPass?'알았음 · 오늘 한 번 더':'알았음 · 내일부터 복습';
+    btns='<div class="btnRow"><button class="btn btnDont" onclick="answer(\'again\')">몰랐음 · 오늘 다시</button><button class="btn btnKnow" onclick="answer(\'good\')">'+knowLabel+'</button></div>';
+  }else{
+    if(c.ease==null)c.ease=2.5;
+    btns='<div class="btnRow">'+
+      '<button class="btn btnDont" onclick="answer(\'again\')">몰랐음<br><small>오늘 다시</small></button>'+
+      '<button class="btn btnHard" onclick="answer(\'hard\')">어려웠음<br><small>'+nextIvl(c,'hard')+'일 뒤</small></button>'+
+      '<button class="btn btnKnow" onclick="answer(\'good\')">알았음<br><small>'+nextIvl(c,'good')+'일 뒤</small></button>'+
+      '</div>';
+  }
   area.innerHTML='<div class="studyCard"><div class="front">'+colorize(c.front)+'</div>'+
     (session.flipped?'<div class="back eng" style="color:var(--ink);font-size:19px">'+(colorize(c.back)||'(정답 미입력)')+'</div>':'')+'</div>'+
     (session.flipped
-      ?'<div class="btnRow"><button class="btn btnDont" onclick="answer(false)">몰랐음 · 오늘 다시</button><button class="btn btnKnow" onclick="answer(true)">'+knowLabel+'</button></div>'
+      ?btns
       :'<div class="btnRow"><button class="btn btnFlip" onclick="flip()">영어로 말한 뒤, 정답 확인</button></div>');
 }
 function flip(){session.flipped=true;renderStudy();
