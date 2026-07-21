@@ -84,6 +84,10 @@
   .colorInline .cdot{width:24px;height:24px}
   .colorInline .cdotX{width:24px;height:24px;font-size:12px;display:flex;align-items:center;justify-content:center}
   .colorBar{display:flex;gap:10px;margin:8px 2px 0;align-items:center}
+  .tagRow{display:flex;gap:6px;margin:8px 0 0;flex-wrap:wrap;align-items:center}
+  .tagRow input{flex:1;min-width:90px;padding:8px 12px;font-size:13px}
+  .tagBadge{display:inline-block;background:var(--hl-soft);border:1px solid var(--hl);
+    border-radius:6px;padding:1px 7px;font-size:10px;font-weight:700;margin-right:6px}
   .cdot{width:30px;height:30px;border-radius:50%;border:2px solid var(--card);
     box-shadow:0 0 0 1px var(--line);font-family:inherit}
   .cdot:active{transform:scale(.9)}
@@ -160,6 +164,7 @@
   <section class="panel" id="panel-study">
     <span class="badge" id="dueBadge"></span>
     <button class="chip" id="sndBtn" style="float:right" onclick="toggleSound()">🔇 소리 꺼짐</button>
+    <div class="chips" id="studyTags"></div>
     <div id="studyArea"></div>
   </section>
 
@@ -177,12 +182,16 @@
     <input type="text" id="inFront" placeholder="깜빡했어.">
     <label>영어 문장 · 표현 (정답)</label>
     <input type="text" id="inBack" class="eng" placeholder="It slipped my mind.">
+    <label>태그 (분류)</label>
+    <div class="tagRow" id="tagRow">
+      <input type="text" id="inTag" placeholder="예: 스픽, 어휘, 코렉션">
+    </div>
     <button class="btn addBtn" onclick="addSingle()">카드 추가</button>
 
     <label style="margin-top:28px">여러 개 한 번에 붙여넣기</label>
     <textarea id="inBulk" placeholder="깜빡했어. It slipped my mind.&#10;unable to decide ; on the fence"></textarea>
     <div class="tip">한 줄에 카드 하나씩, <b>한국어 먼저 → 영어</b> 순서로 이어 쓰면 문제/정답이 자동으로 나뉘어요. <b>영영풀이</b>는 <b>풀이 ; 영단어</b>처럼 세미콜론으로 구분. 사진 속 문장은 아이폰에서 사진을 길게 눌러 텍스트 복사 → 여기에 붙여넣기 📸<br><br>색을 넣고 싶으면 글자를 <b>[b]파랑[/b] [r]빨강[/r] [g]초록[/g]</b>으로 감싸면 돼요. 예: <span class="eng">I [r]aced[/r] the test.</span></div>
-    <button class="btn addBtn" onclick="addBulk()">붙여넣은 카드 모두 추가</button>
+    <button class="btn addBtn" onclick="addBulk()">붙여넣은 카드 모두 추가 (위 태그로)</button>
   </section>
 
   <!-- 기록 -->
@@ -213,6 +222,7 @@
       <button class="chip" data-f="due">오늘 복습</button>
       <button class="chip" data-f="learning">외우는 중</button>
     </div>
+    <div class="chips" id="manageTags"></div>
     <div class="playerBox">
       <div class="playerRow">
         <button class="btn btnFlip" id="playBtn" style="flex:1;padding:12px 0" onclick="togglePlay()">▶︎ 지금 목록 듣기</button>
@@ -252,6 +262,10 @@
     <input type="text" id="editFront">
     <label>정답 (영어)</label>
     <input type="text" id="editBack" class="eng">
+    <label>태그 (분류)</label>
+    <div class="tagRow" id="editTagRow">
+      <input type="text" id="editTag" placeholder="예: 스픽">
+    </div>
     <div class="btnRow">
       <button class="btn btnGhost" style="flex:1" onclick="document.getElementById('editWrap').classList.remove('on')">닫기</button>
       <button class="btn btnFlip" style="flex:2" id="editSave">저장</button>
@@ -301,6 +315,8 @@ async function load(){
     try{D=JSON.parse(raw);}catch(e){}
   }
   if(!D.settings)D.settings={sound:false,rate:1,engRep:2,allRep:1};
+  // 태그 없는 기존 카드는 '스픽'으로 분류 (2026-07-17 사용자 지정 — 수정에서 변경 가능)
+  (D.cards||[]).forEach(c=>{if(c.tag==null)c.tag='스픽';});
   // 기존 카드 → ease/ivl 방식 마이그레이션 (고정 사다리 시절 카드)
   const OLD_INT=[1,3,7,14,30,60,120];
   (D.cards||[]).forEach(c=>{
@@ -314,6 +330,8 @@ async function load(){
   document.getElementById('loading').style.display='none';
   document.getElementById('panel-study').classList.add('on');
   applySettings();
+  if(D.settings.lastTag)document.getElementById('inTag').value=D.settings.lastTag;
+  renderTagChips();renderStudyTags();
   buildQueue();renderAll();
   save(); // 불러온 직후 양쪽 동기화
 }
@@ -355,50 +373,84 @@ document.getElementById('saveState').addEventListener('click',()=>{
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&ready){clearTimeout(saveTimer);doSave();}});
 
 /* ---------- add ---------- */
-function makeCard(f,b){const n=new Date();
-  return{id:Date.now()+Math.random().toString(16).slice(2),front:f,back:b||'',
+function makeCard(f,b,tag){const n=new Date();
+  return{id:Date.now()+Math.random().toString(16).slice(2),front:f,back:b||'',tag:(tag||'').trim(),
   reps:0,step:-1,ease:2.5,ivl:0,due:todayStr(),addedAt:todayStr(),
   addedHM:String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')};}
+function allTags(){
+  const s=new Set();(D.cards||[]).forEach(c=>{if(c.tag)s.add(c.tag);});return [...s];
+}
+function curTag(){
+  const v=document.getElementById('inTag').value.trim();
+  return v;
+}
+function renderTagChips(){
+  // 추가 탭·수정 모달의 태그 입력칸 앞에 기존 태그 원터치 칩
+  [['tagRow','inTag'],['editTagRow','editTag']].forEach(([rowId,inputId])=>{
+    const row=document.getElementById(rowId);if(!row)return;
+    row.querySelectorAll('.chip').forEach(x=>x.remove());
+    const input=document.getElementById(inputId);
+    allTags().forEach(t=>{
+      const b=document.createElement('button');
+      b.type='button';b.className='chip';b.textContent=t;
+      b.onclick=()=>{input.value=t;};
+      row.insertBefore(b,input);
+    });
+  });
+}
 function addSingle(){
   const f=document.getElementById('inFront').value.trim();
   if(!f){toast('문제(한국어 뜻·영영풀이)를 입력해 주세요');return;}
   const b=document.getElementById('inBack').value.trim();
-  D.cards.push(makeCard(f,b));day().added++;
+  const tag=curTag();
+  D.cards.push(makeCard(f,b,tag));day().added++;
+  D.settings.lastTag=tag;
   document.getElementById('inFront').value='';document.getElementById('inBack').value='';
-  save();buildQueue();renderAll();toast('카드 추가 완료');
+  save();buildQueue();renderAll();renderTagChips();toast('카드 추가 완료');
 }
 function addBulk(){
   const lines=document.getElementById('inBulk').value.split('\n').map(l=>l.trim()).filter(Boolean);
   if(!lines.length){toast('붙여넣은 내용이 없어요');return;}
   let n=0;
+  const tag=curTag();
   for(const l of lines){
     const s=l.search(/[;|]/);
     if(s>0){
-      D.cards.push(makeCard(l.slice(0,s).trim(),l.slice(s+1).trim()));
+      D.cards.push(makeCard(l.slice(0,s).trim(),l.slice(s+1).trim(),tag));
     }else if(/^[가-힣ㄱ-ㅎㅏ-ㅣ]/.test(l)||/^\[[brg]\]\s*[가-힣]/.test(l)){
       // 색 태그를 건너뛰고 '실제 영어 정답'이 시작되는 첫 영문자를 찾는다
       const scan=l.replace(/\[\/?[brg]\]/g,m=>' '.repeat(m.length));
       const i=scan.search(/[A-Za-z]/);
       if(i>0){
-        D.cards.push(makeCard(l.slice(0,i).trim(),l.slice(i).trim()));
+        D.cards.push(makeCard(l.slice(0,i).trim(),l.slice(i).trim(),tag));
       }else{
-        D.cards.push(makeCard(l,''));
+        D.cards.push(makeCard(l,'',tag));
       }
     }else{
-      D.cards.push(makeCard(l,''));
+      D.cards.push(makeCard(l,'',tag));
     }
     n++;
   }
-  day().added+=n;document.getElementById('inBulk').value='';
-  save();buildQueue();renderAll();toast(n+'개 카드 추가 완료');
+  day().added+=n;D.settings.lastTag=tag;document.getElementById('inBulk').value='';
+  save();buildQueue();renderAll();renderTagChips();toast(n+'개 카드 추가 완료');
 }
 
 /* ---------- SRS ---------- */
 const OVERDUE_CAP=50;                // 밀린(이전 날짜) 복습 카드 하루 상한
+let studyTag='all';
+function setStudyTag(t){studyTag=t;buildQueue();renderStudy();renderStudyTags();}
+function renderStudyTags(){
+  const el=document.getElementById('studyTags');if(!el)return;
+  const tags=allTags();
+  if(!tags.length){el.innerHTML='';return;}
+  el.innerHTML=['all',...tags].map(t=>
+    '<button class="chip'+(studyTag===t?' on':'')+'" onclick="setStudyTag(\''+t.replace(/'/g,"\\'")+'\')">'+(t==='all'?'전체':esc(t))+'</button>').join('');
+}
 function buildQueue(){
   const t=todayStr();
-  const todayCards=D.cards.filter(c=>c.due===t).map(c=>c.id);
-  const overdue=D.cards.filter(c=>c.due<t).sort((a,b)=>a.due<b.due?-1:1).map(c=>c.id);
+  const pool=studyTag==='all'?D.cards:D.cards.filter(c=>(c.tag||'')===studyTag);
+  const todayCards=pool.filter(c=>c.due===t).map(c=>c.id);
+  const overdue=pool.filter(c=>c.due<t).sort((a,b)=>a.due<b.due?-1:1).map(c=>c.id);
   session.deferred=Math.max(0,overdue.length-OVERDUE_CAP);
   session.queue=overdue.slice(0,OVERDUE_CAP).concat(todayCards);
   session.idx=0;session.flipped=false; // passes는 유지 — 탭 이동으로 반복 진행이 리셋되면 안 됨
@@ -451,7 +503,7 @@ function answer(grade){ // 'again' | 'hard' | 'good'
 }
 
 /* ---------- render ---------- */
-function renderAll(){renderStudy();renderRecord();renderManage();}
+function renderAll(){renderStudy();renderStudyTags();renderRecord();renderManage();}
 function renderStudy(){
   const area=document.getElementById('studyArea');
   document.getElementById('dueBadge').textContent='오늘 복습할 카드 '+session.queue.length+'개'+(session.deferred?' · 밀린 '+session.deferred+'개는 내일':'');
@@ -593,10 +645,20 @@ function renderRecord(){
     :'<p class="hint" style="text-align:left">아직 지난 기록이 없어요.</p>';
 }
 let cardFilter='all';
+let manageTag='all';
+function setManageTag(t){manageTag=t;renderManage();}
+function renderManageTags(){
+  const el=document.getElementById('manageTags');if(!el)return;
+  const tags=allTags();
+  if(!tags.length){el.innerHTML='';return;}
+  el.innerHTML=['all',...tags].map(t=>
+    '<button class="chip'+(manageTag===t?' on':'')+'" onclick="setManageTag(\''+t.replace(/'/g,"\\'")+'\')">'+(t==='all'?'태그 전체':esc(t))+'</button>').join('');
+}
 function getFilteredCards(){
   const q=(document.getElementById('cardSearch').value||'').trim().toLowerCase();
   const t=todayStr();
   let list=[...D.cards].reverse();
+  if(manageTag!=='all')list=list.filter(c=>(c.tag||'')===manageTag);
   if(cardFilter==='today')list=list.filter(c=>c.addedAt===t);
   else if(cardFilter==='due')list=list.filter(c=>c.due<=t);
   else if(cardFilter==='learning')list=list.filter(c=>c.step<0);
@@ -605,6 +667,7 @@ function getFilteredCards(){
 }
 function renderManage(){
   document.getElementById('totalBadge').textContent='전체 카드 '+D.cards.length+'개';
+  renderManageTags();
   const ba=document.getElementById('backupAge');
   if(D.lastBackup){
     const diff=Math.floor((new Date(todayStr())-new Date(D.lastBackup))/86400000);
@@ -616,7 +679,7 @@ function renderManage(){
   list=list.slice(0,300);
   document.getElementById('cardList').innerHTML=(total?('<p class="hint" style="text-align:left;margin-top:10px">'+total+'개'+(total>300?' (300개까지 표시)':'')+'</p>'):'')+
     (list.length?list.map(c=>
-    '<div class="cardItem"><div class="f">'+colorize(c.front)+'</div>'+
+    '<div class="cardItem"><div class="f">'+(c.tag?'<span class="tagBadge">'+esc(c.tag)+'</span>':'')+colorize(c.front)+'</div>'+
     (c.back?'<div class="f eng" style="color:var(--sub);font-size:12px;margin-top:3px">'+colorize(c.back)+'</div>':'')+
     '<div class="meta"><span>추가 '+c.addedAt.slice(5).replace('-','/')+(c.addedHM?' '+c.addedHM:'')+' · 복습 '+c.due.slice(5).replace('-','/')+'</span><span><button class="del" style="color:var(--sub);margin-right:12px" onclick="editCard(\''+c.id+'\')">수정</button><button class="del" onclick="delCard(\''+c.id+'\')">삭제</button></span></div></div>').join('')
     :'<p class="hint" style="text-align:left">조건에 맞는 카드가 없어요.</p>');
@@ -630,10 +693,13 @@ function editCard(id){
   const c=D.cards.find(x=>x.id===id);if(!c)return;
   document.getElementById('editFront').value=c.front;
   document.getElementById('editBack').value=c.back;
+  document.getElementById('editTag').value=c.tag||'';
+  renderTagChips();
   document.getElementById('editSave').onclick=()=>{
     const f=document.getElementById('editFront').value.trim();
     if(!f){toast('문제를 입력해 주세요');return;}
     c.front=f;c.back=document.getElementById('editBack').value.trim();
+    c.tag=document.getElementById('editTag').value.trim();
     save();renderAll();
     document.getElementById('editWrap').classList.remove('on');
     toast('수정 완료');
