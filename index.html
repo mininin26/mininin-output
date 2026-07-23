@@ -49,6 +49,13 @@
     padding:28px 22px;min-height:220px;display:flex;flex-direction:column;justify-content:center;
     text-align:center;margin-top:14px;box-shadow:0 2px 8px rgba(42,42,51,.05)}
   .studyCard .front{font-size:21px;line-height:1.45;font-weight:500}
+  .fSeg{margin:5px 0}
+  .fEn{font-family:Georgia,"Times New Roman",serif;font-size:19px;line-height:1.45}
+  .fKo{font-size:14px;color:var(--sub);font-weight:500}
+  .fEx{margin-top:14px;padding-top:13px;border-top:1px dashed var(--line);
+    font-family:Georgia,"Times New Roman",serif;font-size:16px;line-height:1.55;color:var(--ink)}
+  .blank{background:var(--hl-soft);border-bottom:2px solid var(--hl);
+    padding:0 8px;border-radius:3px;font-weight:700}
   .studyCard .back{font-size:16px;color:var(--sub);margin-top:16px;padding-top:16px;
     border-top:1px dashed var(--line);line-height:1.5}
   .hint{font-size:12px;color:var(--sub);text-align:center;margin-top:10px}
@@ -526,7 +533,7 @@ function renderStudy(){
       '<button class="btn btnKnow" onclick="answer(\'good\')">알았음<br><small>'+nextIvl(c,'good')+'일 뒤</small></button>'+
       '</div>';
   }
-  area.innerHTML='<div class="studyCard"><div class="front">'+colorize(c.front)+'</div>'+
+  area.innerHTML='<div class="studyCard"><div class="front">'+formatFront(c.front)+'</div>'+
     (session.flipped?'<div class="back eng" style="color:var(--ink);font-size:19px">'+(colorize(c.back)||'(정답 미입력)')+'</div>':'')+'</div>'+
     (session.flipped
       ?btns
@@ -714,6 +721,18 @@ function colorize(s){
   return esc(s)
     .replace(/\[b\]/g,'<span class="cB">').replace(/\[r\]/g,'<span class="cR">')
     .replace(/\[g\]/g,'<span class="cG">').replace(/\[\/[brg]\]/g,'</span>');
+}
+function formatFront(s){
+  // " / " 로 구분해 쓰면 층으로 나눠 표시: 영영풀이 / 한국어 뜻 / 예문(빈칸 ___)
+  const parts=(s||'').split(/\s\/\s/);
+  if(parts.length<2)return colorize(s).replace(/_{3,}/g,'<span class="blank">______</span>');
+  return parts.map(p=>{
+    const hasBlank=/_{3,}/.test(p);
+    const hasKo=/[가-힣]/.test(p);
+    let cls='fSeg '+(hasBlank?'fEx':(hasKo?'fKo':'fEn'));
+    const inner=colorize(p).replace(/_{3,}/g,'<span class="blank">______</span>');
+    return '<div class="'+cls+'">'+inner+'</div>';
+  }).join('');
 }
 let lastInput=null;
 ['inFront','inBack','editFront','editBack'].forEach(id=>{
